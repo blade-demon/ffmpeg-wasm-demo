@@ -1,7 +1,10 @@
 import { useState, useEffect, useRef } from "react";
 import axios from "axios";
 import { createFFmpeg, fetchFile } from "@ffmpeg/ffmpeg";
+import * as zip from "@zip.js/zip.js";
 import "./App.css";
+
+const { ZipReader, BlobReader, BlobWriter } = zip;
 
 const ffmpeg = createFFmpeg({ log: true });
 
@@ -23,20 +26,27 @@ function App() {
       responseType: "blob",
     });
 
-    return window.URL.createObjectURL(new Blob([data]));
+    const zipFileReader = new BlobReader(data);
+    const zipReader = new ZipReader(zipFileReader);
+    const entries = await zipReader.getEntries();
+    const firstEntry = entries.shift();
+    const blobWriter = new BlobWriter();
+    const blobData = await firstEntry.getData(blobWriter);
+    return window.URL.createObjectURL(blobData);
   };
 
   const image2video = async () => {
     for (let i = 1; i <= 16; i += 1) {
+      debugger;
       const fileData = await getBase64(
-        `http://localhost:8080/images/screenshot${i}.webp`
+        `http://localhost:8080/images/screenshot${i}`
       );
       ffmpeg.FS("writeFile", `screenshot${i}.webp`, await fetchFile(fileData));
     }
 
     await ffmpeg.run(
       "-framerate",
-      "1",
+      "0.8",
       "-pattern_type",
       "glob",
       "-i",
